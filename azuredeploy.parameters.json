@@ -1,0 +1,87 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "databaseName": {
+            "value": "mysqldatabase38983"
+        },
+        "administratorLogin": {
+            "value": "mysqldbuser"
+        },
+        "administratorLoginPassword": {
+            "value": "!QAZxsw2"
+        },
+        "mysqLocation": {
+            "value": "Brazil South"
+        },
+        "serverName": {
+            "value": "webapp-mysqldbserver-jisolarte"
+        },
+        "skuCapacity": {
+            "value": 4
+        },
+        "skuFamily": {
+            "value": "Gen5"
+        },
+        "skuName": {
+            "value": "GP_Gen5_4"
+        },
+        "skuSizeMB": {
+            "value": 5120
+        },
+        "skuTier": {
+            "value": "GeneralPurpose"
+        },
+        "storageMB": {
+            "value": 5120
+        },
+        "backupRetentionDays": {
+            "value": 7
+        },
+        "geoRedundantBackup": {
+            "value": "Disabled"
+        },
+        "version": {
+            "value": "5.7"
+        },
+        "collation": {
+            "value": "utf8_general_ci"
+        },
+        "charset": {
+            "value": "utf8"
+        },
+        "websiteName": {
+            "value": "wpjisolarte"
+        },
+        "hostingPlanName": {
+            "value": "app-plan-wpjisolarte"
+        },
+        "hostingEnvironment": {
+            "value": ""
+        },
+        "location": {
+            "value": "brazilsouth"
+        },
+        "sku": {
+            "value": "Free"
+        },
+        "workerSize": {
+            "value": "0"
+        },
+        "resourceGroupName": {
+            "value": "webApplicationRG"
+        },
+        "skuCode": {
+            "value": "F1"
+        },
+        "subscriptionId": {
+            "value": "f484d2b1-769c-496f-b29f-c1a7a3639742"
+        },
+        "numberOfApps": {
+            "value": 2
+        },
+        "applicationGatewayName": {
+            "value": "appGateway01"
+        }
+    }
+}

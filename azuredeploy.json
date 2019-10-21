@@ -1,0 +1,527 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "databaseName": {
+            "type": "string"
+        },
+        "administratorLogin": {
+            "type": "string"
+        },
+        "administratorLoginPassword": {
+            "type": "securestring"
+        },
+        "mysqLocation": {
+            "type": "string"
+        },
+        "serverName": {
+            "type": "string"
+        },
+        "skuCapacity": {
+            "type": "int"
+        },
+        "skuFamily": {
+            "type": "string"
+        },
+        "storageMB": {
+            "type": "int"
+        },
+        "backupRetentionDays": {
+            "type": "int"
+        },
+        "geoRedundantBackup": {
+            "type": "string"
+        },
+        "skuName": {
+            "type": "string"
+        },
+        "skuSizeMB": {
+            "type": "int"
+        },
+        "skuTier": {
+            "type": "string"
+        },
+        "version": {
+            "type": "string"
+        },
+        "charset": {
+            "type": "string"
+        },
+        "collation": {
+            "type": "string"
+        },
+        "websiteName": {
+            "type": "string"
+        },
+        "hostingPlanName": {
+            "type": "string"
+        },
+        "hostingEnvironment": {
+            "type": "string"
+        },
+        "location": {
+            "type": "string"
+        },
+        "sku": {
+            "type": "string"
+        },
+        "skuCode": {
+            "type": "string"
+        },
+        "workerSize": {
+            "type": "string"
+        },
+        "resourceGroupName": {
+            "type": "string"
+        },
+        "subscriptionId": {
+            "type": "string"
+        },
+        "numberOfApps": {
+            "type": "int"
+        },
+        "applicationGatewayName": {
+            "type": "string"
+        },
+        "minimumCapacity": {
+        "type": "Int",
+        "defaultValue": 2
+        },
+        "maximumCapacity": {
+        "type": "Int",
+        "defaultValue": 5
+        },
+        "defaultCapacity": {
+        "type": "Int",
+        "defaultValue": 5
+        },
+        "metricName": {
+        "type": "string",
+        "defaultValue": "CpuPercentage"
+        },
+        "metricThresholdToScaleOut": {
+        "type": "Int",
+        "defaultValue": 60
+        },
+        "metricThresholdToScaleIn": {
+        "type": "Int",
+        "defaultValue": 20
+        },
+        "changePercentScaleOut": {
+        "type": "Int",
+        "defaultValue": 20
+        },
+        "changePercentScaleIn": {
+        "type": "Int",
+        "defaultValue": 10
+        },
+        "autoscaleEnabled": {
+        "type": "Bool"
+        }
+    },
+    "variables" : {
+        "virtualNetworkName" : "webAppVnet",
+        "vnetAddressPrefix": "10.0.0.0/22",
+        "appGatewaySubnetName": "[concat(parameters('applicationGatewayName'),'-subnet')]",
+        "subnetAddressPrefix": "10.0.0.0/27",
+        "publicIpName": "[concat(parameters('applicationGatewayName'),'-pip')]",
+        "appGatewayId": "[resourceId('Microsoft.Network/appplicationGateways',parameters('applicationGatewayName'))]",
+        "autoScaleSettingName": "[concat(parameters('hostingPlanName'),'-autoScaleSetting')]"
+        
+    },
+    "resources": [
+
+                {
+            "name": "[concat(parameters('serverName'),copyIndex(1))]",
+            "type": "Microsoft.DBforMySQL/servers",
+            "apiVersion": "2017-12-01-preview",
+            "location": "[parameters('mysqLocation')]",
+            "properties": {
+                "version": "[parameters('version')]",
+                "administratorLogin": "[parameters('administratorLogin')]",
+                "administratorLoginPassword": "[parameters('administratorLoginPassword')]",
+                "storageProfile": {
+                    "storageMB": "[parameters('skuSizeMB')]",
+                    "backupRetentionDays": "[parameters('backupRetentionDays')]",
+                    "geoRedundantBackup": "[parameters('geoRedundantBackup')]"
+                },
+                "sslEnforcement": "Disabled"
+            },
+            "sku": {
+                "name": "[parameters('skuName')]",
+                "tier": "[parameters('skuTier')]",
+                "capacity": "[parameters('skuCapacity')]",
+                "size": "[parameters('skuSizeMB')]",
+                "family": "[parameters('skuFamily')]"
+            },
+            "resources": [
+                {
+                    "name": "AllowAll",
+                    "type": "firewallrules",
+                    "apiVersion": "2017-12-01-preview",
+                    "properties": {
+                        "startIpAddress": "0.0.0.0",
+                        "endIpAddress": "255.255.255.255"
+                    },
+                    "location": "[parameters('mysqLocation')]",
+                    "dependsOn": [
+                        "[concat('Microsoft.DBforMySQL/servers/', concat(parameters('serverName'),copyIndex(1)), '/databases/' , parameters('databaseName'))]",
+                        "[concat('Microsoft.DBforMySQL/servers/', concat(parameters('serverName'),copyIndex(1)))]"
+                    ]
+                },
+                {
+                    "name": "[parameters('databaseName')]",
+                    "type": "databases",
+                    "apiVersion": "2017-12-01-preview",
+                    "properties": {
+                        "charset": "[parameters('charset')]",
+                        "collation": "[parameters('collation')]"
+                    },
+                    "dependsOn": [
+                        "[concat('Microsoft.DBforMySQL/servers/', concat(parameters('serverName'),copyIndex(1)))]"
+                    ]
+                }
+            ],
+            "copy":{
+                "name":"awesomeDbLoop",
+                "mode":"parallel",
+                "count": "[parameters('numberOfApps')]"
+            }
+        },
+            {
+            "apiVersion": "2016-09-01",
+            "name": "[concat(parameters('hostingPlanName'),copyIndex(1))]",
+            "type": "Microsoft.Web/serverfarms",
+            "location": "[parameters('location')]",
+            "properties": {
+                "name": "[concat(parameters('hostingPlanName'),copyIndex(1))]",
+                "workerSizeId": "[parameters('workerSize')]",
+                "numberOfWorkers": "2",
+                "hostingEnvironment": "[parameters('hostingEnvironment')]"
+            },
+            "sku": {
+                "Tier": "[parameters('sku')]",
+                "Name": "[parameters('skuCode')]"
+            },
+            "copy": {
+                "name": "awesomeAppPlanLoop",
+                "count": "[parameters('numberOfApps')]"
+            }
+        },
+        {
+        "type": "Microsoft.Insights/autoscalesettings",
+      "name": "[concat(variables('autoScaleSettingName'),copyindex(1))]",
+      "dependsOn": [
+        "awesomeAppPlanLoop"
+      ],
+      "apiVersion": "2014-04-01",
+      "location": "[parameters('location')]",
+      "copy":{
+          "name": "awesomeSettingLoop",
+          "count": "[parameters('numberOfApps')]"
+      },
+      "properties": {
+        "profiles": [
+          {
+            "name": "DefaultAutoscaleProfile",
+            "capacity": {
+              "minimum": "[parameters('minimumCapacity')]",
+              "maximum": "[parameters('maximumCapacity')]",
+              "default": "[parameters('defaultCapacity')]"
+            },
+            "rules": [
+              {
+                "metricTrigger": {
+                  "metricName": "[parameters('metricName')]",
+                  "metricNamespace": "",
+                  "metricResourceUri": "[concat(parameters('hostingPlanName'),copyindex(1))]",
+                  "timeGrain": "PT5M",
+                  "statistic": "Average",
+                  "timeWindow": "PT10M",
+                  "timeAggregation": "Average",
+                  "operator": "GreaterThan",
+                  "threshold": "[parameters('metricThresholdToScaleOut')]"
+                },
+                "scaleAction": {
+                  "direction": "Increase",
+                  "type": "PercentChangeCount",
+                  "value": "[parameters('changePercentScaleOut')]",
+                  "cooldown": "PT10M"
+                }
+              },
+              {
+                "metricTrigger": {
+                  "metricName": "[parameters('metricName')]",
+                  "metricNamespace": "",
+                  "metricResourceUri": "[concat(parameters('hostingPlanName'),copyindex(1))]",
+                  "timeGrain": "PT5M",
+                  "statistic": "Average",
+                  "timeWindow": "PT10M",
+                  "timeAggregation": "Average",
+                  "operator": "LessThan",
+                  "threshold": "[parameters('metricThresholdToScaleIn')]"
+                },
+                "scaleAction": {
+                  "direction": "Decrease",
+                  "type": "PercentChangeCount",
+                  "value": "[parameters('changePercentScaleIn')]",
+                  "cooldown": "PT10M"
+                }
+              }
+            ]
+          }
+        ],
+        "enabled": "[parameters('autoscaleEnabled')]",
+        "targetResourceUri": "[concat(parameters('hostingPlanName'),copyindex(1))]"
+      }
+      },
+    
+        {
+            "name": "[concat(parameters('websiteName'),copyindex(1))]",
+            "type": "Microsoft.Web/sites",
+            "copy":{
+                    "name": "awesomeWebAppLoop",
+                    "count": "[parameters('numberOfApps')]"
+                },
+            "properties": {
+                "siteConfig": {
+                    "appSettings": [
+                        {
+                            "name": "PHPMYADMIN_EXTENSION_VERSION",
+                            "value": "latest"
+                        },
+                        {
+                            "name": "WEBSITE_DYNAMIC_CACHE",
+                            "value": "0"
+                        },
+                        {
+                            "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                            "value": "[reference(concat('microsoft.insights/components/wpjisolarte',copyindex(1)), '2015-05-01').InstrumentationKey]"
+                        },
+                        {
+                            "name": "XDT_MicrosoftApplicationInsights_Mode",
+                            "value": "default"
+                        },
+                        {
+                            "name": "ApplicationInsightsAgent_EXTENSION_VERSION",
+                            "value": "~2"
+                        }
+                    ],
+                    "phpVersion": "7.0",
+                    "connectionStrings": [
+                        {
+                            "name": "defaultConnection",
+                            "ConnectionString": "[concat('Database=', parameters('databaseName'), ';Data Source=', parameters('serverName'),copyindex(1) ,'.mysql.database.azure.com;User Id=',parameters('administratorLogin'),'@',parameters('serverName'), copyindex(1) ,';Password=',parameters('administratorLoginPassword'))]",
+                            "type": "MySQL"
+                        }
+                    ]
+                },
+                //"name": "[parameters('websiteName')]",
+                "serverFarmId": "[concat('/subscriptions/', parameters('subscriptionId'),'/resourcegroups/', parameters('resourceGroupName'), '/providers/Microsoft.Web/serverfarms/', concat(parameters('hostingPlanName'),copyindex(1)))]",
+                "hostingEnvironment": "[parameters('hostingEnvironment')]"
+                
+            },
+            "resources": [
+                {
+                    "apiVersion": "2016-03-01",
+                    "name": "web",
+                    "type": "sourcecontrols",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Web/Sites', concat(parameters('websiteName'),copyindex(1)))]"
+                    ],
+                    "properties": {
+                        "RepoUrl": "https://github.com/azureappserviceoss/wordpress-azure",
+                        "branch": "master",
+                        "IsManualIntegration": true
+                    }
+                }
+            ],
+            "dependsOn": [
+                "[concat('Microsoft.Web/serverfarms/', parameters('hostingPlanName'),copyIndex(1))]",
+                "[concat('Microsoft.Insights/components/wpjisolarte',copyIndex(1))]",
+                "[concat('Microsoft.DBforMySQL/servers/',parameters('serverName'),copyIndex(1))]"
+            ],
+            "apiVersion": "2016-03-01",
+            "location": "[parameters('location')]"
+        },
+
+        {
+            "apiVersion": "2015-05-01",
+            "name": "[concat('wpjisolarte',copyIndex(1))]",
+            "type": "microsoft.insights/components",
+            "location": "[parameters('location')]",
+            "properties": {
+                "ApplicationId": "[concat(parameters('websiteName'),copyIndex(1))]",
+                "Request_Source": "IbizaWebAppExtensionCreate"
+            },
+            "copy":{
+                "name": "awesomeAppInsightLoop",
+                "count": "[parameters('numberOfApps')]"
+            }
+        },
+
+          {
+      "apiVersion": "2017-06-01",
+      "type": "Microsoft.Network/publicIPAddresses",
+      "name": "[variables('publicIpName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "publicIPAllocationMethod": "Dynamic"
+      }
+    },
+    {
+      "apiVersion": "2017-06-01",
+      "type": "Microsoft.Network/virtualNetworks",
+      "name": "[variables('virtualNetworkName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[variables('vnetAddressPrefix')]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[variables('appGatewaySubnetName')]",
+            "properties": {
+              "addressPrefix": "[variables('subnetAddressPrefix')]"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "2017-10-01",
+      "name": "[parameters('applicationGatewayName')]",
+      "type": "Microsoft.Network/applicationGateways",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'))]",
+        "[concat('Microsoft.Network/publicIPAddresses/', variables('publicIPName'))]",
+        "awesomeWebAppLoop"
+      ],
+      "properties": {
+        "sku": {
+          "name": "Standard_Medium",
+          "tier": "Standard",
+          "capacity": "2"
+        },
+        "gatewayIPConfigurations": [
+          {
+            "name": "appGatewayIpConfig",
+            "properties": {
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets',variables('virtualNetworkName'),variables('appGatewaySubnetName'))]"
+              }
+            }
+          }
+        ],
+        "frontendIPConfigurations": [
+          {
+            "name": "appGatewayFrontendIP",
+            "properties": {
+              "PublicIPAddress": {
+                "id": "[resourceid('Microsoft.Network/publicIpAddresses',variables('publicIpName'))]"
+              }
+            }
+          }
+        ],
+        "frontendPorts": [
+          {
+            "name": "appGatewayFrontendPort",
+            "properties": {
+              "Port": 80
+            }
+          }
+        ],
+        "backendAddressPools": [
+          {
+            "name": "appGatewayBackendPool",
+            "properties": {
+              "BackendAddresses": [
+                {
+                    "copy":{
+                        "name": "backendAddressLoop",
+                        "count": "[parameters('numberOfApps')]",
+                        "input": {
+                            "ipAddress":"[resourceId('Microsoft.Web/sites',parameters('websiteName'),copyIndex(1))]"
+                        }
+                    }
+                }
+              ]
+            }
+          }
+        ],
+        "backendHttpSettingsCollection": [
+          {
+            "name": "appGatewayBackendHttpSettings",
+            "properties": {
+              "Port": 80,
+              "Protocol": "Http",
+              "CookieBasedAffinity": "Disabled",
+              "PickHostNameFromBackendAddress": true,
+              "ProbeEnabled": true,
+              "Probe": {
+                "id": "[concat(variables('appGatewayId'), '/probes/Probe1')]"
+              }
+            }
+          }
+        ],
+        "httpListeners": [
+          {
+            "name": "appGatewayHttpListener",
+            "properties": {
+              "FrontendIPConfiguration": {
+                "Id": "[concat(variables('appGatewayId'), '/frontendIPConfigurations/appGatewayFrontendIP')]"
+              },
+              "FrontendPort": {
+                "Id": "[concat(variables('appGatewayId'), '/frontendPorts/appGatewayFrontendPort')]"
+              },
+              "Protocol": "Http",
+              "SslCertificate": null
+            }
+          }
+        ],
+        "requestRoutingRules": [
+          {
+            "Name": "rule1",
+            "properties": {
+              "RuleType": "Basic",
+              "httpListener": {
+                "id": "[concat(variables('appGatewayId'), '/httpListeners/appGatewayHttpListener')]"
+              },
+              "backendAddressPool": {
+                "id": "[concat(variables('appGatewayId'), '/backendAddressPools/appGatewayBackendPool')]"
+              },
+              "backendHttpSettings": {
+                "id": "[concat(variables('appGatewayId'), '/backendHttpSettingsCollection/appGatewayBackendHttpSettings')]"
+              }
+            }
+          }
+        ],
+        "probes": [
+          {
+            "Name": "Probe1",
+            "properties": {
+              "Protocol": "Http",
+              "Path": "/",
+              "Interval": 30,
+              "Timeout": 10,
+              "UnhealthyThreshold": 3,
+              "MinServers": 0,
+              "PickHostNameFromBackendHttpSettings": true
+            }
+          }
+        ]
+      }
+    }
+
+      
+    ],
+    "outputs":{
+
+
+        }
+    }
+    
+
